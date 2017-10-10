@@ -7,8 +7,8 @@ Accounts in calculations:
 * signall loss
 
 ## Assumptions
-Propagation speed > origin velocity
-Propagation speed > destination velocity
+* Propagation speed > origin velocity
+* Propagation speed > destination velocity
 
 ## Test suite
 **generateTests.py** - generates a set of tests with different parameters (random or predefined), saves it in .mat file (and maybe .pickle file for Python)
@@ -34,6 +34,7 @@ Outputs:
 ## Enviroment
 Project uses Python 3.5.4 (it pointed in .python-version file)
 Python requirements for using this code listed in `requirements.txt`, also development requirements listed in `dev-requirements.txt`
+
 Matlab version is R2016b (9.1), 64-bit(glnxa64)
 
 ## Code style

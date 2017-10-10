@@ -1,5 +1,4 @@
 import numpy as np
-import math
 import itertools as it
 from scipy import constants as consts
 import logging

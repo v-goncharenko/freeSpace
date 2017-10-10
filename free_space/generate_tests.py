@@ -1,5 +1,8 @@
 from scipy import io
 
+tests = ['1', '2'] # TODO automatically indicate number of tests
+tests_path = 'test_cases/'
+
 fs_labels = [
     'operating_frequency',
     'sample_rate',
@@ -27,8 +30,8 @@ def gen_simple_test():
         'origin_vel':           [0] * 3,
         'dest_vel':             [0] * 3,
     }
-    io.savemat('testCases/{}_input'.format(count), mdict)
+    io.savemat('{}{}_input'.format(tests_path, count), mdict)
 
 if __name__ == '__main__':
     gen_simple_test()
-    print('ok =)')
+    print('Tests generated')
