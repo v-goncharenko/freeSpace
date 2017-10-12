@@ -21,8 +21,11 @@ class FreeSpaceTest(unittest.TestCase):
             fs = free_space.FreeSpace(**{ label: input_dict[label] for label in generate_tests.fs_labels})
             received = fs.step(**{label: input_dict[label] for label in generate_tests.step_labels})
 
+            print(received.shape)
+
             # write results to mat file
-            io.savemat('{}{}_python'.format(generate_tests.tests_path, test), {self.save_name: received})
+            io.savemat('{}{}_python'.format(generate_tests.tests_path, test),
+                       {self.save_name: received[:, None]})
 
 if __name__ == '__main__':
     unittest.main()
