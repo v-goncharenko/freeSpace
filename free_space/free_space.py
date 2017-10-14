@@ -1,6 +1,7 @@
 import numpy as np
 import itertools as it
 from scipy import constants as consts
+import math
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -46,75 +47,59 @@ class FreeSpace(object):
         :returns array-like: received signal
         """
         # premutate all input to np array form
-        signal = FreeSpace._prepare_vector(signal)
+        signal = FreeSpace._prepare_vector(signal, dtype=np.complex_)
         logging.debug('signal head: {}'.format(signal[:5]))
         logging.debug('signal.shape: {}'.format(signal.shape))
-        origin_pos = FreeSpace._prepare_vector(origin_pos)
-        dest_pos = FreeSpace._prepare_vector(dest_pos)
-        origin_vel = FreeSpace._prepare_vector(origin_vel)
-        dest_vel = FreeSpace._prepare_vector(dest_vel)
+        origin_pos = FreeSpace._prepare_vector(origin_pos, 3)
+        dest_pos = FreeSpace._prepare_vector(dest_pos, 3)
+        origin_vel = FreeSpace._prepare_vector(origin_vel, 3)
+        dest_vel = FreeSpace._prepare_vector(dest_vel, 3)
 
         received = np.empty_like(signal, dtype=np.complex_)
+        distance = np.squeeze(np.linalg.norm(dest_pos - origin_pos))
+        # tau is time shift between signal emission and reception
+        tau = distance / self.propagation_speed
+        loss = self._loss(tau)
+        phase_shift = self._phase_shift(tau)
+        delay_frac, delay_int = math.modf(tau * self.sample_rate)
+        delay_int = int(delay_int)
+        # delay signal to delay_int moments, but keep overall length
+        delayed_signal = it.islice(
+            it.chain(it.repeat(0, delay_int), signal),
+            signal.size
+        )
 
-        conditions = self._conditions(origin_pos, dest_pos, origin_vel, dest_vel, signal.size)
-        for moment, time, distance in conditions:
-            # tau is time shift between signal emmision and reception
-            tau = distance / self.propagation_speed
-            logging.debug(' @@@ moment: {}, time: {}, distance: {}'.format(moment, time, distance))
-            if tau > time:
-                received[moment] = 0
-            else:
-                # TODO how to round values?
-                emission_moment = moment - int(tau * self.sample_rate)
-                original_signal = signal[emission_moment]
-                logging.debug('original_signal {}'.format(original_signal))
-                received[moment] = original_signal * self._loss(tau) * self._phase_shift(tau)
+        # to compute interpolated signal we need signal value at previous moment
+        prev_signal = 0
+        for moment, curr_signal in enumerate(delayed_signal):
+            curr_signal = curr_signal * loss * phase_shift
+            interpolated = prev_signal * delay_frac + curr_signal * (1 - delay_frac)
+            received[moment] = interpolated
+            prev_signal = curr_signal
+
+        logging.debug('received head {}'.format(received[:10]))
         return received
 
     @staticmethod
-    def _prepare_vector(object, size=None):
+    def _prepare_vector(object, size=None, dtype=np.float_):
         """
         Makes vector (1 dimentional array) out of object if it's possible, else throws an exception
         :param array-like object: numpy-compatible object (could be agregated by np.array)
         :param integer or None size: number of components that vector has in it's only dimention
-        :returns array-like: 1 dimentional numpy array made from object
+        :param data-type dtype: data type used to construct numpy array, see np.array
+        :returns array-like: 1 dimentional numpy array (shaped (n, )) made from object
         """
-        vector = np.array(object, copy=False)
+        vector = np.array(object, copy=False, dtype=dtype)
         vector = np.squeeze(vector)
         if vector.ndim != 1:
             raise ValueError('Inputed vector must be one dimentional!')
-        if size and vector.shape[0] != size:
+        if size and vector.size != size:
             raise ValueError('This vector must have {} components'.format(size))
         return vector
 
-    def _conditions(self, origin_pos, dest_pos, origin_vel, dest_vel, to_moment):
-        """
-        This function returns generator that yields values of time and distance
-        between origin and destination in scale of sample_rate. This means that
-        first distance is initial, second is in time 1/sample_rate, third:
-        2/sample_rate and so on
-        :param integer to_moment: moment to generate conditions to
-        """
-        # change coordinate system to origin's
-        init_pos = dest_pos - origin_pos
-        relative_vel = dest_vel - origin_vel
-
-        # moments will be measured in scale of sample_rate
-        # time beween two nearby moments is
-        sample_time_increment = 1 / self.sample_rate
-        # count of how many tics passed
-        moment_counter = it.count()
-        moment = next(moment_counter)
-
-        while moment < to_moment:
-            time = moment * sample_time_increment
-            position = init_pos + relative_vel * time
-            yield moment, time, np.linalg.norm(position)
-            moment = next(moment_counter)
-
     def _loss(self, tau):
         loss = np.power(4 * consts.pi * tau * self.operating_frequency, -1)
-        logging.debug('loss: {}, dtype: {}'.format(loss, loss.dtype))
+        logging.debug('inverted loss: {}, dtype: {}'.format(1 / loss, loss.dtype))
         return np.squeeze(loss)
 
     def _phase_shift(self, tau):

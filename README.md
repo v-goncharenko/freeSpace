@@ -11,6 +11,7 @@ Accounts in calculations:
 * Propagation speed > destination velocity
 
 ## Test suite
+**generateTests.m** - код на матлабе для генерации тестов
 **generateTests.py** - generates a set of tests with different parameters (random or predefined), saves it in .mat file (and maybe .pickle file for Python)
 Outputs:
     <!-- * propagation_speed | disabled for some time =( -->

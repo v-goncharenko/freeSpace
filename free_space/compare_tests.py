@@ -2,10 +2,13 @@ import unittest
 import numpy.testing as nptest
 from scipy import io
 import numpy as np
+import logging
 
 import generate_tests
 import test_matlab
 import test_free_space
+
+logging.basicConfig(level=logging.DEBUG)
 
 class CompareTests(unittest.TestCase):
     def test_compare(self):
@@ -15,12 +18,15 @@ class CompareTests(unittest.TestCase):
             # extract matlab
             matlab_res = io.loadmat('{}{}_{}'.format(generate_tests.tests_path, test, 'matlab'))
             matlab = np.array(matlab_res[test_matlab.MatlabTest.save_name], copy=False)
+            logging.debug('matlab: {}'.format(matlab_res[test_matlab.MatlabTest.save_name][:10]))
 
             # extract FreeSpace
             python_res = io.loadmat('{}{}_{}'.format(generate_tests.tests_path, test, 'python'))
             python = np.array(python_res[test_free_space.FreeSpaceTest.save_name], copy=False)
+            logging.debug('pyton: {}'.format(python_res[test_free_space.FreeSpaceTest.save_name][:10]))
 
             nptest.assert_allclose(python, matlab)
 
 if __name__ == '__main__':
     unittest.main()
+ 
