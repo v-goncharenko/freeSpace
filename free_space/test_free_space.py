@@ -1,4 +1,5 @@
 import unittest
+import time
 from scipy import io
 
 import free_space
@@ -16,7 +17,10 @@ class FreeSpaceTest(unittest.TestCase):
 
             # perform tests
             fs = free_space.FreeSpace(**{ label: input_dict[label] for label in generate_tests.fs_labels})
+            start = time.perf_counter()
             received = fs.step(**{label: input_dict[label] for label in generate_tests.step_labels})
+            end = time.perf_counter()
+            print('took {:f} seconds'.format(end - start))
 
             # write results to mat file
             io.savemat('{}{}_python'.format(generate_tests.tests_path, test),

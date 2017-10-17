@@ -129,12 +129,10 @@ class FreeSpace(object):
         """
         vel_projection = - np.dot(relative_vel, relative_pos) / np.linalg.norm(relative_pos)
         logging.debug('vel_projection: {}'.format(vel_projection))
-        # coef = ( 1j * 2 * consts.pi * self._propagation_ratio * vel_projection
-        #     * self.operating_frequency / self.propagation_speed )
+        coef = ( 1j * 2 * consts.pi * self._propagation_ratio * vel_projection
+            * self.operating_frequency / self.propagation_speed )
         # init_shift = np.exp(coef * tau)
         # shift_increment = np.exp(coef / self.sample_rate)
         return lambda moment: np.squeeze( np.exp(
-            1j * 2 * consts.pi * self._propagation_ratio * vel_projection
-            * self.operating_frequency / self.propagation_speed
-            * (tau + (moment - delay_int) / self.sample_rate)
+            coef * (tau + (moment - delay_int) / self.sample_rate)
         ) )
