@@ -1,6 +1,6 @@
 from scipy import io
 
-tests = ['1', '2', '3'] # TODO automatically indicate number of tests
+tests = ['1', '2', '3', '5'] # TODO automatically indicate number of tests
 tests_path = 'test_cases/'
 
 fs_labels = [

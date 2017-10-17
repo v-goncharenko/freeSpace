@@ -31,10 +31,15 @@ class FreeSpace(object):
         self.propagation_speed = propagation_speed
         self.operating_frequency = operating_frequency
         self.sample_rate = sample_rate
-        self.two_way_propagation = two_way_propagation
+        self._propagation_ratio = 2.0 if two_way_propagation else 1.0
 
     def __str__(self):
         return 'FreeSpace object'
+
+    def __repr__(self):
+        return ('FreeSpace with propagation speed {}, operating frequency {},'
+                'sample rate {}, propagation ratio {}').format(self.propagation_speed,
+                    self.operating_frequency, self.sample_rate, self._propagation_ratio)
 
     def step(self, signal, origin_pos, dest_pos, origin_vel, dest_vel):
         """
@@ -55,12 +60,18 @@ class FreeSpace(object):
         origin_vel = FreeSpace._prepare_vector(origin_vel, 3)
         dest_vel = FreeSpace._prepare_vector(dest_vel, 3)
 
+        # allocate space for result
         received = np.empty_like(signal, dtype=np.complex_)
-        distance = np.squeeze(np.linalg.norm(dest_pos - origin_pos))
+
+        # precalculate support values
+        relative_pos = origin_pos - dest_pos
+        relative_vel = origin_vel - dest_vel
+        distance = np.squeeze(np.linalg.norm(relative_pos))
         # tau is time shift between signal emission and reception
-        tau = distance / self.propagation_speed
+        tau = self._propagation_ratio * distance / self.propagation_speed
         loss = self._loss(tau)
         phase_shift = self._phase_shift(tau)
+        doppler_shift = self._doppler_shift(tau, relative_pos, relative_vel)
         delay_frac, delay_int = math.modf(tau * self.sample_rate)
         delay_int = int(delay_int)
         # delay signal to delay_int moments, but keep overall length
@@ -72,7 +83,7 @@ class FreeSpace(object):
         # to compute interpolated signal we need signal value at previous moment
         prev_signal = 0
         for moment, curr_signal in enumerate(delayed_signal):
-            curr_signal = curr_signal * loss * phase_shift
+            curr_signal = curr_signal * loss * phase_shift * doppler_shift(moment)
             interpolated = prev_signal * delay_frac + curr_signal * (1 - delay_frac)
             received[moment] = interpolated
             prev_signal = curr_signal
@@ -106,3 +117,14 @@ class FreeSpace(object):
         shift = np.exp(-1j * 2 * consts.pi * self.operating_frequency * tau)
         logging.debug('phase shift: {}, dtype: {}'.format(shift, shift.dtype))
         return np.squeeze(shift)
+
+    def _doppler_shift(self, tau, relative_pos, relative_vel):
+        """ returns lambda which depends on moment """
+        vel_projection = np.dot(relative_vel, relative_pos) / np.linalg.norm(relative_pos)
+        coef = ( 1j * 2 * consts.pi * self._propagation_ratio * vel_projection
+            * self.propagation_speed / self.sample_rate )
+        init_shift = np.exp(coef * tau)
+        shift_increment = np.exp(coef / self.sample_rate)
+        return lambda moment: np.exp(
+            coef * (tau + moment / self.sample_rate)
+        )

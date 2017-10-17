@@ -44,6 +44,5 @@ class FreeSpaceTest(unittest.TestCase):
                        {self.save_name + '_1': received_1[:, None],
                         self.save_name + '_2': received_2[:, None] })
 
-
 if __name__ == '__main__':
     unittest.main()
