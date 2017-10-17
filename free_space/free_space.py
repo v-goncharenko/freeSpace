@@ -4,7 +4,7 @@ from scipy import constants as consts
 import math
 import logging
 
-# logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 
 class FreeSpace(object):
     """
@@ -74,20 +74,30 @@ class FreeSpace(object):
         phase_shift = self._phase_shift(tau)
         delay_frac, delay_int = math.modf(tau * self.sample_rate)
         delay_int = int(delay_int)
-        doppler_shift = self._doppler_shift(tau, relative_pos, relative_vel, delay_int)
+        doppler_init, incr_doppler = self._doppler_shift(tau, relative_pos, relative_vel, delay_int)
         # delay signal to delay_int moments, but keep overall length
         delayed_signal = it.islice(
             it.chain(it.repeat(0, delay_int), signal),
             signal.size
         )
 
+        doppler = doppler_init
+
         # to compute interpolated signal we need signal value at previous moment
         prev_signal = 0
+        # just for perfomance improvement
+        coef = loss * phase_shift * doppler_init
         for moment, curr_signal in enumerate(delayed_signal):
-            curr_signal = curr_signal * loss * phase_shift * doppler_shift(moment)
+            curr_signal = curr_signal * coef
             interpolated = prev_signal * delay_frac + curr_signal * (1 - delay_frac)
             received[moment] = interpolated
             prev_signal = curr_signal
+            logging.debug(moment)
+            if moment > delay_int:
+                coef = coef * incr_doppler
+                # print('doppler_shift at {}: {}'.format(moment - delay_int, doppler))
+                logging.debug('coef: {}'.format(coef))
+                doppler = doppler * incr_doppler
 
         logging.debug('received head {}'.format(received[:10]))
         return received
@@ -131,8 +141,6 @@ class FreeSpace(object):
         logging.debug('vel_projection: {}'.format(vel_projection))
         coef = ( 1j * 2 * consts.pi * self._propagation_ratio * vel_projection
             * self.operating_frequency / self.propagation_speed )
-        # init_shift = np.exp(coef * tau)
-        # shift_increment = np.exp(coef / self.sample_rate)
-        return lambda moment: np.squeeze( np.exp(
-            coef * (tau + (moment - delay_int) / self.sample_rate)
-        ) )
+        init_shift = np.exp(coef * tau)
+        shift_increment = np.exp(coef / self.sample_rate)
+        return init_shift, shift_increment

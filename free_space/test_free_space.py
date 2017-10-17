@@ -26,27 +26,27 @@ class FreeSpaceTest(unittest.TestCase):
             io.savemat('{}{}_python'.format(generate_tests.tests_path, test),
                        {self.save_name: received[:, None]})
 
-    def test_multiple_input(self):
-            test = '4'
-            print('test #{}\n'.format(test))
+    # def test_multiple_input(self):
+    #         test = '4'
+    #         print('test #{}\n'.format(test))
 
-            # read input from mat file
-            input_dict = io.loadmat('{}{}_{}'.format(generate_tests.tests_path, test, 'input'))
+    #         # read input from mat file
+    #         input_dict = io.loadmat('{}{}_{}'.format(generate_tests.tests_path, test, 'input'))
 
-            # perform tests
-            fs = free_space.FreeSpace(**{ label: input_dict[label] for label in generate_tests.fs_labels})
+    #         # perform tests
+    #         fs = free_space.FreeSpace(**{ label: input_dict[label] for label in generate_tests.fs_labels})
 
-            labels = {label: input_dict[label] for label in generate_tests.step_labels if label != 'signal'}
-            labels['signal'] = input_dict['signal_1']
-            received_1 = fs.step(**labels)
+    #         labels = {label: input_dict[label] for label in generate_tests.step_labels if label != 'signal'}
+    #         labels['signal'] = input_dict['signal_1']
+    #         received_1 = fs.step(**labels)
 
-            labels['signal'] = input_dict['signal_2']
-            received_2 = fs.step(**labels)
+    #         labels['signal'] = input_dict['signal_2']
+    #         received_2 = fs.step(**labels)
 
-            # write results to mat file
-            io.savemat('{}{}_python'.format(generate_tests.tests_path, test),
-                       {self.save_name + '_1': received_1[:, None],
-                        self.save_name + '_2': received_2[:, None] })
+    #         # write results to mat file
+    #         io.savemat('{}{}_python'.format(generate_tests.tests_path, test),
+    #                    {self.save_name + '_1': received_1[:, None],
+    #                     self.save_name + '_2': received_2[:, None] })
 
 if __name__ == '__main__':
     unittest.main()
