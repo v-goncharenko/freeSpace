@@ -4,7 +4,7 @@ from scipy import constants as consts
 import math
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 class FreeSpace(object):
     """
@@ -64,16 +64,17 @@ class FreeSpace(object):
         received = np.empty_like(signal, dtype=np.complex_)
 
         # precalculate support values
-        relative_pos = origin_pos - dest_pos
-        relative_vel = origin_vel - dest_vel
+        relative_pos = dest_pos - origin_pos
+        relative_vel = dest_vel - origin_vel
         distance = np.squeeze(np.linalg.norm(relative_pos))
         # tau is time shift between signal emission and reception
         tau = self._propagation_ratio * distance / self.propagation_speed
+        logging.debug('tau: {}'.format(tau))
         loss = self._loss(tau)
         phase_shift = self._phase_shift(tau)
-        doppler_shift = self._doppler_shift(tau, relative_pos, relative_vel)
         delay_frac, delay_int = math.modf(tau * self.sample_rate)
         delay_int = int(delay_int)
+        doppler_shift = self._doppler_shift(tau, relative_pos, relative_vel, delay_int)
         # delay signal to delay_int moments, but keep overall length
         delayed_signal = it.islice(
             it.chain(it.repeat(0, delay_int), signal),
@@ -118,13 +119,22 @@ class FreeSpace(object):
         logging.debug('phase shift: {}, dtype: {}'.format(shift, shift.dtype))
         return np.squeeze(shift)
 
-    def _doppler_shift(self, tau, relative_pos, relative_vel):
-        """ returns lambda which depends on moment """
-        vel_projection = np.dot(relative_vel, relative_pos) / np.linalg.norm(relative_pos)
-        coef = ( 1j * 2 * consts.pi * self._propagation_ratio * vel_projection
-            * self.propagation_speed / self.sample_rate )
-        init_shift = np.exp(coef * tau)
-        shift_increment = np.exp(coef / self.sample_rate)
-        return lambda moment: np.exp(
-            coef * (tau + moment / self.sample_rate)
-        )
+    def _doppler_shift(self, tau, relative_pos, relative_vel, delay_int):
+        """
+        Returns lambda which depends on moment.
+        Moment counts from beginning of received signal, but due to Matlab's
+        implementation, **doppler's addition counts from delay_int**
+        Also we could use negative indexes since signal for thoose indexes is
+        always zero
+        """
+        vel_projection = - np.dot(relative_vel, relative_pos) / np.linalg.norm(relative_pos)
+        logging.debug('vel_projection: {}'.format(vel_projection))
+        # coef = ( 1j * 2 * consts.pi * self._propagation_ratio * vel_projection
+        #     * self.operating_frequency / self.propagation_speed )
+        # init_shift = np.exp(coef * tau)
+        # shift_increment = np.exp(coef / self.sample_rate)
+        return lambda moment: np.squeeze( np.exp(
+            1j * 2 * consts.pi * self._propagation_ratio * vel_projection
+            * self.operating_frequency / self.propagation_speed
+            * (tau + (moment - delay_int) / self.sample_rate)
+        ) )

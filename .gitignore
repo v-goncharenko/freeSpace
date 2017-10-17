@@ -100,3 +100,5 @@ ENV/
 # Goncharenko
 .DS_Store
 .idea
+
+test_cases
