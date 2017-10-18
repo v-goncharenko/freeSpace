@@ -4,7 +4,7 @@ from scipy import constants as consts
 import math
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 class FreeSpace(object):
     """
@@ -72,32 +72,28 @@ class FreeSpace(object):
         logging.debug('tau: {}'.format(tau))
         loss = self._loss(tau)
         phase_shift = self._phase_shift(tau)
+        doppler_init, incr_doppler = self._doppler_shift(tau, relative_pos, relative_vel)
         delay_frac, delay_int = math.modf(tau * self.sample_rate)
         delay_int = int(delay_int)
-        doppler_init, incr_doppler = self._doppler_shift(tau, relative_pos, relative_vel, delay_int)
         # delay signal to delay_int moments, but keep overall length
         delayed_signal = it.islice(
             it.chain(it.repeat(0, delay_int), signal),
             signal.size
         )
 
-        doppler = doppler_init
-
         # to compute interpolated signal we need signal value at previous moment
         prev_signal = 0
         # just for perfomance improvement
         coef = loss * phase_shift * doppler_init
         for moment, curr_signal in enumerate(delayed_signal):
+            # crutch for matlab's implementation
+            if moment > delay_int:
+                coef = coef * incr_doppler
+
             curr_signal = curr_signal * coef
             interpolated = prev_signal * delay_frac + curr_signal * (1 - delay_frac)
             received[moment] = interpolated
             prev_signal = curr_signal
-            logging.debug(moment)
-            if moment > delay_int:
-                coef = coef * incr_doppler
-                # print('doppler_shift at {}: {}'.format(moment - delay_int, doppler))
-                logging.debug('coef: {}'.format(coef))
-                doppler = doppler * incr_doppler
 
         logging.debug('received head {}'.format(received[:10]))
         return received
@@ -129,7 +125,7 @@ class FreeSpace(object):
         logging.debug('phase shift: {}, dtype: {}'.format(shift, shift.dtype))
         return np.squeeze(shift)
 
-    def _doppler_shift(self, tau, relative_pos, relative_vel, delay_int):
+    def _doppler_shift(self, tau, relative_pos, relative_vel):
         """
         Returns lambda which depends on moment.
         Moment counts from beginning of received signal, but due to Matlab's

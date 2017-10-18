@@ -4,7 +4,7 @@ Inspiered by Matlab's [phased.FreeSpace](https://www.mathworks.com/help/phased/r
 Accounts in calculations:
 * time delay
 * doppler effect
-* signall loss
+* signal loss
 
 ## Assumptions
 * Propagation speed > origin velocity
@@ -41,5 +41,5 @@ Python requirements for using this code listed in `requirements.txt`, also devel
 Matlab version is R2016b (9.1), 64-bit(glnxa64)
 
 ## Code style
-[Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
+We use [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
 except line length set to 120.

@@ -1,5 +1,4 @@
-# tests = ['1', '2', '3', '6'] # TODO automatically indicate number of tests
-tests = ['6']
+tests = ['1', '2', '3', '6'] # TODO automatically indicate number of tests
 tests_path = 'test_cases/'
 
 fs_labels = [
