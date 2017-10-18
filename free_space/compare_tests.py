@@ -8,7 +8,7 @@ import generate_tests
 import test_matlab
 import test_free_space
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 class CompareTests(unittest.TestCase):
     def test_compare(self):

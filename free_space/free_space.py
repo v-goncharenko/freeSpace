@@ -72,28 +72,16 @@ class FreeSpace(object):
         logging.debug('tau: {}'.format(tau))
         loss = self._loss(tau)
         phase_shift = self._phase_shift(tau)
-        doppler_init, incr_doppler = self._doppler_shift(tau, relative_pos, relative_vel)
+        doppler_shift = self._doppler_shift(tau, relative_pos, relative_vel, signal.size)
         delay_frac, delay_int = math.modf(tau * self.sample_rate)
         delay_int = int(delay_int)
-        # delay signal to delay_int moments, but keep overall length
-        delayed_signal = it.islice(
-            it.chain(it.repeat(0, delay_int), signal),
-            signal.size
-        )
 
-        # to compute interpolated signal we need signal value at previous moment
-        prev_signal = 0
-        # just for perfomance improvement
-        coef = loss * phase_shift * doppler_init
-        for moment, curr_signal in enumerate(delayed_signal):
-            # crutch for matlab's implementation
-            if moment > delay_int:
-                coef = coef * incr_doppler
-
-            curr_signal = curr_signal * coef
-            interpolated = prev_signal * delay_frac + curr_signal * (1 - delay_frac)
-            received[moment] = interpolated
-            prev_signal = curr_signal
+        aux_signal = np.empty(signal.size + 1, dtype=np.complex_)
+        aux_signal[0] = 0
+        aux_signal[1:] = loss * phase_shift * doppler_shift * signal
+        received[:delay_int] = 0
+        received[delay_int:] = ( aux_signal[:-delay_int - 1] * delay_frac
+                    + aux_signal[1:aux_signal.size - delay_int] * (1 - delay_frac) )
 
         logging.debug('received head {}'.format(received[:10]))
         return received
@@ -125,18 +113,14 @@ class FreeSpace(object):
         logging.debug('phase shift: {}, dtype: {}'.format(shift, shift.dtype))
         return np.squeeze(shift)
 
-    def _doppler_shift(self, tau, relative_pos, relative_vel):
+    def _doppler_shift(self, tau, relative_pos, relative_vel, length):
         """
-        Returns lambda which depends on moment.
-        Moment counts from beginning of received signal, but due to Matlab's
-        implementation, **doppler's addition counts from delay_int**
-        Also we could use negative indexes since signal for thoose indexes is
-        always zero
+        Returns ndarray of doppler shifts
         """
         vel_projection = - np.dot(relative_vel, relative_pos) / np.linalg.norm(relative_pos)
         logging.debug('vel_projection: {}'.format(vel_projection))
         coef = ( 1j * 2 * consts.pi * self._propagation_ratio * vel_projection
             * self.operating_frequency / self.propagation_speed )
-        init_shift = np.exp(coef * tau)
-        shift_increment = np.exp(coef / self.sample_rate)
-        return init_shift, shift_increment
+        shift = np.exp(coef * (tau + np.arange(length) / self.sample_rate))
+        logging.debug('doppler_shift: {}'.format(shift))
+        return shift
